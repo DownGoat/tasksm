@@ -69,10 +69,15 @@ func print_sub_task(task Task, indent int, postfix string) {
 
 func print_tasks(storage_file Tasks) {
 	fmt.Println("ID  : Priority :  Status  :  Name")
-	postfix := "\u2554"
+	fmt.Print("\u2554")
+	for i := 0; i < 79; i++ {
+		fmt.Print("\u2550")
+	}
+	fmt.Print("\n")
+	postfix := "\u2560"
 	for idx, task := range storage_file.TaskList {
 		if idx == (len(storage_file.TaskList) - 1) {
-			postfix = "\u255a"
+			postfix = "\u2560"
 		}
 
 		status := task.Status
@@ -81,7 +86,7 @@ func print_tasks(storage_file Tasks) {
 			status = "\u2713"
 		}
 
-		fmt.Println(postfix, task.Id, ": ", task.Priority, "      : ", status, "      : ", task.Name)
+		fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Name)
 
 		for _, sub := range task.SubTasks {
 			print_sub_task(sub, 1, "\u2560")
@@ -121,34 +126,36 @@ func nice_body(body string) string {
 }
 
 func print_task(storage_file Tasks, id int) {
-	for _, task := range storage_file.TaskList {
-		if task.Id == int32(id) {
-			fmt.Println("Name:    ", task.Name, "")
-			fmt.Println("Created: ", task.Created)
-			fmt.Println("Due:     ", task.Due)
+	task := search_for_id(storage_file.TaskList, id)
+	if task == nil {
+		fmt.Println("Could not find task")
+		os.Exit(1)
+	}
 
-			if task.Completed {
-				fmt.Println("Status:  \u2713 Completed")
-			} else {
-				fmt.Println("Status:  ", task.Status)
-			}
+	fmt.Println("Name:    ", task.Name, "")
+	fmt.Println("Created: ", task.Created)
+	fmt.Println("Due:     ", task.Due)
 
-			fmt.Println("Priority:", task.Priority)
-			fmt.Print("Sub Tasks:")
+	if task.Completed {
+		fmt.Println("Status:  \u2713 Completed")
+	} else {
+		fmt.Println("Status:  ", task.Status)
+	}
 
-			for sub, _ := range task.SubTasks {
-				fmt.Print(sub)
-			}
+	fmt.Println("Priority:", task.Priority)
+	fmt.Print("Sub Tasks: ")
 
-			fmt.Print("\n")
+	for _, sub := range task.SubTasks {
+		fmt.Print(sub.Id, " ")
+	}
 
-			if len(task.Body) < BODY_LIMIT {
-				fmt.Println("Body:    ", task.Body)
-			} else {
-				fmt.Println("Body:\n")
-				fmt.Println(nice_body(task.Body))
-			}
-		}
+	fmt.Print("\n")
+
+	if len(task.Body) < BODY_LIMIT {
+		fmt.Println("Body:    ", task.Body)
+	} else {
+		fmt.Println("Body:\n")
+		fmt.Println(nice_body(task.Body))
 	}
 }
 
@@ -174,35 +181,29 @@ func change_completion(storage_file *Tasks, completed string, id int) {
 	} else {
 		task.Completed = false
 	}
-
-	for i := 0; i < len(storage_file.TaskList); i++ {
-		if storage_file.TaskList[i].Id == int32(id) {
-			if completed == "t" {
-				storage_file.TaskList[i].Completed = true
-			} else {
-				storage_file.TaskList[i].Completed = false
-			}
-		}
-	}
 }
 
 func change_priority(storage_file *Tasks, priority, id int) {
-	for i := 0; i < len(storage_file.TaskList); i++ {
-		if storage_file.TaskList[i].Id == int32(id) {
-			storage_file.TaskList[i].Priority = int32(priority)
-		}
+	task := search_for_id(storage_file.TaskList, id)
+	if task == nil {
+		fmt.Println("Could not find task")
+		os.Exit(1)
 	}
+
+	task.Priority = int32(priority)
 }
 
 func add_sub_task(storage_file *Tasks, sub Task, id int) {
-	for i := 0; i < len(storage_file.TaskList); i++ {
-		if storage_file.TaskList[i].Id == int32(id) {
-			if storage_file.TaskList[i].SubTasks == nil {
-				storage_file.TaskList[i].SubTasks = []Task{sub}
-			} else {
-				storage_file.TaskList[i].SubTasks = append(storage_file.TaskList[i].SubTasks, sub)
-			}
-		}
+	task := search_for_id(storage_file.TaskList, id)
+	if task == nil {
+		fmt.Println("Could not find task")
+		os.Exit(1)
+	}
+
+	if task.SubTasks == nil {
+		task.SubTasks = []Task{sub}
+	} else {
+		task.SubTasks = append(task.SubTasks, sub)
 	}
 }
 
@@ -211,7 +212,11 @@ func search_for_id(tasks []Task, id int) *Task {
 		if tasks[i].Id == int32(id) {
 			return &(tasks[i])
 		}
-		return search_for_id(tasks[i].SubTasks, id)
+
+		ret := search_for_id(tasks[i].SubTasks, id)
+		if ret != nil && ret.Id == int32(id) {
+			return ret
+		}
 	}
 
 	return nil
