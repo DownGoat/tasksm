@@ -52,7 +52,7 @@ func print_sub_task(task Task, indent int, postfix string) {
 	}
 
 	task_status := task.Status
-	if task.Status == "t" {
+	if task.Completed {
 		task_status = "\u2713"
 	}
 
@@ -76,6 +76,57 @@ func print_tasks(storage_file Tasks) {
 	fmt.Print("\n")
 	postfix := "\u2560"
 	for idx, task := range storage_file.TaskList {
+		if idx == (len(storage_file.TaskList) - 1) {
+			postfix = "\u2560"
+		}
+
+		status := task.Status
+
+		if task.Completed == true {
+			status = "\u2713"
+		}
+
+		fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Name)
+
+		for _, sub := range task.SubTasks {
+			print_sub_task(sub, 1, "\u2560")
+		}
+
+		postfix = "\u2560"
+	}
+}
+
+func check_subtask_completion(tasks []Task) bool {
+	for _, task := range tasks {
+		if task.Completed == false {
+			return false
+		}
+
+		if !check_subtask_completion(task.SubTasks) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func hide_completed_print(storage_file Tasks) {
+	fmt.Println("ID  : Priority :  Status  :  Name")
+	fmt.Print("\u2554")
+	for i := 0; i < 79; i++ {
+		fmt.Print("\u2550")
+	}
+	fmt.Print("\n")
+	postfix := "\u2560"
+
+	for idx, task := range storage_file.TaskList {
+		if task.Completed && len(task.SubTasks) == 0 {
+			continue
+		}
+		if task.Completed && len(task.SubTasks) != 0 && check_subtask_completion(task.SubTasks) {
+			continue
+		}
+
 		if idx == (len(storage_file.TaskList) - 1) {
 			postfix = "\u2560"
 		}
@@ -229,6 +280,7 @@ func main() {
 	created_ts := flag.String("created", time.Now().Format(time.RFC850), "Time the task was created, default is now.")
 	due_ts := flag.String("d", time.Now().Format(time.RFC850), "Time the task is due, default is now.")
 	priority := flag.Int("p", 5, "Priority of task")
+	hide_completed := flag.Bool("hc", false, "Hide Completed task from printout")
 
 	task := flag.Int("i", -1, "ID of task to print.")
 	status := flag.String("cs", "", "The status of the task, w=working, p=paused, s=stoped.")
@@ -259,6 +311,8 @@ func main() {
 		} else {
 			print_task(storage_file, *task)
 		}
+	} else if *hide_completed {
+		hide_completed_print(storage_file)
 	} else if *new_entry == false {
 		print_tasks(storage_file)
 	} else {
