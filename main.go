@@ -44,6 +44,7 @@ var task_sub = flag.Bool("ts", false, "Print out a task like in the main view to
 var alert_duef = flag.Bool("ad", false, "Prints out tasks that are over due.")
 var alert_due_short = flag.Bool("ads", false, "Prints out due tasks in short form.")
 var status_filter = flag.String("ps", "", "Print out tasks based on their status.")
+var priority_filter = flag.Bool("pp", false, "Prints out the tasks in short form based on their priorities.")
 
 var task = flag.Int("i", -1, "ID of task to print.")
 var status = flag.String("cs", "", "The status of the task, w=working, p=paused, s=stoped.")
@@ -367,7 +368,9 @@ func print_alert_due(tasks []Task) {
 	now := time.Now()
 	for _, task := range tasks {
 		task_due, err := time.Parse(time.RFC850, task.Due)
-		check(err)
+		if err != nil {
+			continue
+		}
 
 		if !task.Completed && task_due.Before(now) {
 			fmt.Println("Name:    ", task.Name, "")
@@ -517,7 +520,7 @@ func build_tasks_array(tasks *[]Task, tasks_array *[]*Task) {
 
 func arrange_priorities(tasks *[]*Task) {
 	for i := 0; i < len(*tasks); i++ {
-
+		(*tasks)[i].Priority = int32(i + 1)
 	}
 }
 
@@ -528,9 +531,19 @@ func priority_scheduler(storage_file *Tasks) {
 	sort.Sort(ByPriority(tasks))
 
 	arrange_priorities(&tasks)
+
+	if *priority_filter {
+		for i := 0; i < len(tasks); i++ {
+			fmt.Println(tasks[i].Id, ": ", tasks[i].Priority, ": ", tasks[i].Name, ": ", tasks[i].Due)
+		}
+	}
 }
 
 func main() {
+	print_only := false
+	if len(os.Args) == 1 {
+		print_only = true
+	}
 
 	flag.Parse()
 	parse_date("2015.05.11 15:15")
@@ -574,7 +587,7 @@ func main() {
 		print_alert_due(storage_file.TaskList)
 	} else if *hide_completed {
 		hide_completed_print(storage_file)
-	} else if *new_entry == false {
+	} else if print_only {
 		print_tasks(storage_file)
 	}
 
