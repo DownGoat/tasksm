@@ -20,6 +20,7 @@ type Task struct {
 	Status    string
 	Id        int32
 	Priority  int32
+	Workload  string
 	SubTasks  []Task
 }
 
@@ -39,6 +40,8 @@ var body = flag.String("b", "bar", "Body of new task.")
 var created_ts = flag.String("created", time.Now().Format(time.RFC850), "Time the task was created, default is now.")
 var due_ts = flag.String("d", "", "Time the task is due, default is now.")
 var priority = flag.Int("p", 5, "Priority of task")
+var workload = flag.String("w", "", "The workload of the task, units are 1w for week, 1d for day, and 1h for hours.")
+
 var hide_completed = flag.Bool("hc", false, "Hide Completed task from printout")
 var task_sub = flag.Bool("ts", false, "Print out a task like in the main view together with the sub tasks.")
 var alert_duef = flag.Bool("ad", false, "Prints out tasks that are over due.")
@@ -115,7 +118,7 @@ func print_sub_task(task Task, indent int, postfix string) {
 		task_status = "\u2713"
 	}
 
-	fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", task_status, ": ", task.Name)
+	fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", task_status, ": ", task.Workload, ": ", task.Name)
 
 	sub_pos := "\u2560"
 	for idx, sub := range task.SubTasks {
@@ -127,8 +130,9 @@ func print_sub_task(task Task, indent int, postfix string) {
 }
 
 func print_tasks(storage_file Tasks) {
-	fmt.Println("ID  : Priority :  Status  :  Name")
+	fmt.Println("ID  : Priority :  Status  :  Workload  :  Name")
 	fmt.Print("\u2554")
+
 	for i := 0; i < 79; i++ {
 		fmt.Print("\u2550")
 	}
@@ -145,7 +149,7 @@ func print_tasks(storage_file Tasks) {
 			status = "\u2713"
 		}
 
-		fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Name)
+		fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Workload, ": ", task.Name)
 
 		for _, sub := range task.SubTasks {
 			print_sub_task(sub, 1, "\u2560")
@@ -244,6 +248,7 @@ func print_task(storage_file Tasks, id int) {
 
 	fmt.Println("Name:    ", task.Name, "")
 	fmt.Println("Created: ", task.Created)
+	fmt.Println("Workload:", task.Workload)
 	fmt.Println("Due:     ", task.Due)
 
 	if task.Completed {
@@ -339,7 +344,7 @@ func print_task_and_subs(storage_file Tasks, id int) {
 		os.Exit(1)
 	}
 
-	fmt.Println("ID  : Priority :  Status  :  Name")
+	fmt.Println("ID  : Priority :  Status  :  Workload  :  ")
 	fmt.Print("\u2554")
 	for i := 0; i < 79; i++ {
 		fmt.Print("\u2550")
@@ -353,7 +358,7 @@ func print_task_and_subs(storage_file Tasks, id int) {
 		status = "\u2713"
 	}
 
-	fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Name)
+	fmt.Println(postfix, task.Id, ": ", task.Priority, ": ", status, ": ", task.Workload, ": ", task.Name)
 
 	for _, sub := range task.SubTasks {
 		print_sub_task(sub, 1, "\u2560")
@@ -376,6 +381,7 @@ func print_alert_due(tasks []Task) {
 		if !task.Completed && task_due.Before(now) {
 			fmt.Println("Name:    ", task.Name, "")
 			fmt.Println("Created: ", task.Created)
+			fmt.Println("Workload ", task.Workload)
 			fmt.Println("Due:     ", task.Due)
 
 			if task.Completed {
@@ -425,7 +431,7 @@ func print_alert_due_short(tasks []Task) {
 		}
 
 		if !task.Completed && task_due.Before(now) {
-			fmt.Println("Id: ", task.Id, "Name: ", task.Name)
+			fmt.Println("Id: ", task.Id, "Name: ", task.Name, "Workload: ", task.Workload)
 		}
 		if task.SubTasks != nil {
 			print_alert_due_short(task.SubTasks)
@@ -499,6 +505,7 @@ func add_new_task(storage_file *Tasks) {
 		"ns",
 		storage_file.NewestId + 1,
 		int32(*priority),
+		*workload,
 		nil,
 	}
 
