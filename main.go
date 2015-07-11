@@ -34,6 +34,8 @@ type ByPriority []*Task
 
 const BODY_LIMIT int = 50
 
+var tasks_path = fmt.Sprintf("%s/.tasks", os.Getenv("HOME"))
+
 var new_entry = flag.Bool("c", false, "Create a new entry.")
 var name = flag.String("n", "foo", "Name of new task.")
 var body = flag.String("b", "bar", "Body of new task.")
@@ -78,8 +80,12 @@ func check(err error) {
 	}
 }
 
-func open_file(path string) []byte {
+func open_file(path string, panic *bool) []byte {
 	file_content, err := ioutil.ReadFile(path)
+	if err != nil {
+		*panic = true
+		return nil
+	}
 	check(err)
 
 	return file_content
@@ -560,6 +566,15 @@ func print_due_filter(storage_file *Tasks) {
 	}
 }
 
+func first_start() {
+	storage_file := Tasks{0, []Task{}}
+	json_bytes, err := json.Marshal(storage_file)
+	check(err)
+	write_file(tasks_path, json_bytes)
+	fmt.Println("Tasks file created at: ", tasks_path)
+	os.Exit(1)
+}
+
 func main() {
 	print_only := false
 	if len(os.Args) == 1 {
@@ -569,7 +584,11 @@ func main() {
 	flag.Parse()
 	parse_date("2015.05.11 15:15")
 
-	tasks_f_content := open_file("/home/puse/tasks")
+	panic := false
+	tasks_f_content := open_file(tasks_path, &panic)
+	if panic {
+		first_start()
+	}
 
 	var storage_file Tasks
 	err := json.Unmarshal(tasks_f_content, &storage_file)
@@ -617,5 +636,5 @@ func main() {
 	priority_scheduler(&storage_file)
 
 	json_bytes, err := json.Marshal(storage_file)
-	write_file("/home/puse/tasks", json_bytes)
+	write_file(tasks_path, json_bytes)
 }
