@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -51,6 +52,8 @@ var alert_due_short = flag.Bool("ads", false, "Prints out due tasks in short for
 var status_filter = flag.String("ps", "", "Print out tasks based on their status.")
 var priority_filter = flag.Bool("pp", false, "Prints out the tasks in short form based on their priorities.")
 var due_filter = flag.Bool("pd", false, "Prints out the tasks in short form sorted by the due date.")
+var name_regexp = flag.String("sn", "", "Regex search, will ttry and match the name of a task.")
+var body_regexp = flag.String("sb", "", "Regex search, will try and match the body of a task.")
 
 var task = flag.Int("i", -1, "ID of task to print.")
 var status = flag.String("cs", "", "The status of the task, w=working, p=paused, s=stoped.")
@@ -522,6 +525,12 @@ func add_new_task(storage_file *Tasks) {
 	}
 
 	storage_file.NewestId += 1
+
+	tasks := []*Task{}
+	build_tasks_array(&storage_file.TaskList, &tasks)
+	sort.Sort(ByPriority(tasks))
+
+	arrange_priorities(&tasks)
 }
 
 func build_tasks_array(tasks *[]Task, tasks_array *[]*Task) {
@@ -573,6 +582,33 @@ func first_start() {
 	write_file(tasks_path, json_bytes)
 	fmt.Println("Tasks file created at: ", tasks_path)
 	os.Exit(1)
+}
+
+func search_by_name(storage_file *Tasks) {
+	tasks := []*Task{}
+	build_tasks_array(&storage_file.TaskList, &tasks)
+
+	r, _ := regexp.Compile(*name_regexp)
+	for i := 0; i < len(tasks); i++ {
+		byteArray := []byte(tasks[i].Name)
+
+		if r.Match(byteArray) {
+			print_task(*storage_file, int(tasks[i].Id))
+		}
+	}
+}
+
+func search_by_body(storage_file *Tasks) {
+	tasks := []*Task{}
+	build_tasks_array(&storage_file.TaskList, &tasks)
+
+	r, _ := regexp.Compile(*body_regexp)
+	for i := 0; i < len(tasks); i++ {
+		byteArray := []byte(tasks[i].Body)
+		if r.Match(byteArray) {
+			print_task(*storage_file, int(tasks[i].Id))
+		}
+	}
 }
 
 func main() {
@@ -631,6 +667,10 @@ func main() {
 		print_tasks(storage_file)
 	} else if *due_filter {
 		print_due_filter(&storage_file)
+	} else if *name_regexp != "" {
+		search_by_name(&storage_file)
+	} else if *body_regexp != "" {
+		search_by_body(&storage_file)
 	}
 
 	priority_scheduler(&storage_file)
